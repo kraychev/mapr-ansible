@@ -18,7 +18,7 @@
      find:
        paths: "{{ lookup('env','HOME') }}/labfiles"
        patterns: "*"
-     register: content
+     register: contents
 
    - debug: 
        msg: "{{ contents }}"
