@@ -1,0 +1,364 @@
+---
+- hosts: all
+  tasks:
+   - ping:
+   - name: Unarchive a file that needs to be downloaded
+     unarchive:
+       src: "http://course-files.mapr.com/ADM2000-R2/ClusterTests.zip"
+       dest: "{{ lookup('env','HOME') }}"
+       remote_src: yes
+     register: x_tests
+   - debug: 
+       msg: "ClusterTests.zip downloaded and extracted"
+     when: x_tests is changed
+
+   - name: List files
+   #  shell: "ls {{ lookup('env','HOME') }}/labfiles"    
+   #  register: contents
+     find:
+       paths: "{{ lookup('env','HOME') }}/labfiles"
+       patterns: "*"
+     register: content
+
+   - debug: 
+       msg: "{{ contents }}"
+       
+- hosts: all
+  gather_facts: no
+  tasks:
+   - name: "Backup /etc/clustershell/groups.d/local.cfg -> /etc/clustershell/groups.d/local.cfg.orig"
+     copy: 
+       src: /etc/clustershell/groups.d/local.cfg
+       dest: /etc/clustershell/groups.d/local.cfg.orig
+
+   - name: "Clear /etc/clustershell/groups.d/local.cfg"
+     lineinfile:
+       path: /etc/clustershell/groups.d/local.cfg
+       regexp: '.'
+       state: absent
+       backup: yes 
+     register: clearcfg
+
+   - debug:
+       msg: "{{ clearcfg }}"
+
+   - name: "Setting nodes in /etc/clustershell/groups.d/local.cfg"
+     lineinfile: 
+       path: /etc/clustershell/groups.d/local.cfg
+       insertbefore: BOF
+       line: 'all: node1 node2 node3'
+       state: present
+     register: addcfglines
+
+   - debug: 
+       msg: "{{ addcfglines }}"
+
+- hosts: all
+  gather_facts: no
+  tasks:
+   - rpm_key:
+       state: present
+       key: http://package.mapr.com/releases/pub/maprgpg.key
+     register: key_res
+
+   - debug:
+       msg: "{{ key_res }}"
+
+   - name: Add MapR yum repo
+     yum_repository:
+       name: mapr-dist
+       description: MapR dist
+       file: mapr
+       baseurl: http://package.mapr.com/releases/v6.0.0/redhat
+       enabled: yes 
+       gpgcheck: yes
+       protect: yes
+       state: present
+     register: repo1
+
+   - debug: 
+       msg: "{{ repo1 }}"
+         
+   - name: Add MapR yum repo #2
+     yum_repository:
+       name: mapr-eco
+       description: MapR Ecosystem
+       file: mapr
+       baseurl: http://package.mapr.com/releases/MEP/MEP-4.0.0/redhat
+       enabled: yes 
+       gpgcheck: yes
+       protect: yes
+       state: present
+     register: repo2
+
+   - debug: 
+       msg: "{{ repo2 }}"
+
+   - name: Update yum cache
+     yum:
+       update_cache: yes
+     register: updcache
+
+   - debug: 
+       msg: "{{ updcache }}"
+
+- hosts: all
+  gather_facts: no
+  tasks:
+
+   - name: Add mapr group
+     group: 
+       name: mapr
+       gid: 5000
+     register: groups
+   - debug: 
+       msg: "{{ groups }}"
+
+   - name: Add mapr user
+     user: 
+       name: mapr
+       uid: 5000
+       group: mapr
+     register: users
+   - debug: 
+       msg: "{{ users }}"       
+
+- hosts: all
+  tasks:
+    - name: install mapr core, fileserver, nfs, webserver, zookeeper from mapr-dist repo
+      yum:
+        name: "{{ packages }}"
+        state: present
+      vars:
+        packages:
+        - mapr-core
+        - mapr-fileserver
+        - mapr-nfs
+        - mapr-webserver
+        - mapr-zookeeper
+      register: packages1
+    - debug:
+       msg: "{{ packages1 }}"
+
+- hosts: cldb
+  tasks:
+    - name: install mapr cldb from mapr-dist repo
+      yum: 
+        name: mapr-cldb
+        state: present
+      register: cldbpkg
+    - debug:
+       msg: "{{ cldbpkg }}"
+
+- hosts: node1
+  tasks:
+    - name: Running /opt/mapr/server/configure.sh -C node1, node2 -Z node1, node2, node3 --isvm -N MyCluster -secure -genkeys -no-autostart       
+      shell: /opt/mapr/server/configure.sh -C node1, node2 -Z node1, node2, node3 --isvm -N MyCluster -secure -genkeys -no-autostart
+      register: shres
+    - debug:
+       msg: "{{ shres }}"
+
+- hosts: node1
+  tasks:
+
+    - name: Copy /opt/mapr/conf/cldb.key to node2:/opt/mapr/conf/maprserverticket
+      synchronize:
+        src: /opt/mapr/conf/cldb.key
+        dest: /opt/mapr/conf/
+        mode: pull
+      delegate_to: node2
+      register: cpr
+    - debug:
+       msg: "{{ cpr }}"
+
+    - name: Copy /opt/mapr/conf/cldb.key to node2:/opt/mapr/conf/maprserverticket
+      synchronize:
+        src: /opt/mapr/conf/cldb.key
+        dest: /opt/mapr/conf/
+        mode: pull
+      delegate_to: node3
+      register: cpra
+    - debug:
+       msg: "{{ cpra }}"
+
+
+    - name: Copy /opt/mapr/conf/cldb.key to node3:/opt/mapr/conf/maprserverticket
+      synchronize:
+        src: /opt/mapr/conf/maprserverticket
+        dest: /opt/mapr/conf/
+        mode: pull
+      delegate_to: node2
+      register: cprb
+    - debug:
+       msg: "{{ cprb }}"
+       
+
+    - name: Copy /opt/mapr/conf/cldb.key to node3:/opt/mapr/conf/maprserverticket
+      synchronize:
+        src: /opt/mapr/conf/maprserverticket
+        dest: /opt/mapr/conf/
+        mode: pull
+      delegate_to: node3
+      register: cpr2
+    - debug:
+       msg: "{{ cpr2 }}"
+       
+
+    - name: Copy /opt/mapr/conf/cldb.key to node2:/opt/mapr/conf/ssl_keystore
+      synchronize:
+        src: /opt/mapr/conf/ssl_keystore
+        dest: /opt/mapr/conf/
+        mode: pull
+      delegate_to: node2
+      register: cpr3
+    - debug:
+       msg: "{{ cpr3 }}"
+
+    - name: Copy /opt/mapr/conf/cldb.key to node3:/opt/mapr/conf/ssl_keystore
+      synchronize:
+        src: /opt/mapr/conf/ssl_keystore
+        dest: /opt/mapr/conf/
+        mode: pull
+      delegate_to: node3
+      register: cpr4
+    - debug:
+       msg: "{{ cpr4 }}"
+
+    - name: Copy /opt/mapr/conf/cldb.key to node2:/opt/mapr/conf/ssl_truststore
+      synchronize:
+        src:  /opt/mapr/conf/ssl_truststore
+        dest: /opt/mapr/conf/
+        mode: pull
+      delegate_to: node2
+      register: cpr5
+    - debug:
+       msg: "{{ cpr5 }}"
+
+    - name: Copy /opt/mapr/conf/cldb.key to node3:/opt/mapr/conf/ssl_truststore
+      synchronize:
+        src: /opt/mapr/conf/ssl_truststore
+        dest: /opt/mapr/conf
+        mode: pull
+      delegate_to: node3
+      register: cpr6
+    - debug:
+       msg: "{{ cpr6 }}"
+      
+- hosts: node2
+  tasks:
+    - name: Configure node 
+      shell: /opt/mapr/server/configure.sh -C node1, node2 -Z node1, node2, node3 --isvm -N MyCluster -secure -no-autostart
+      register: cfg1
+    - debug:
+       msg: "{{ cfg1 }}"
+
+- hosts: node3
+  tasks:
+    - name: Configure node 
+      shell: /opt/mapr/server/configure.sh -C node1, node2 -Z node1, node2, node3 --isvm -N MyCluster -secure -no-autostart
+      register: cfg2
+    - debug:
+       msg: "{{ cfg2 }}"
+
+- hosts: node1
+  tasks:
+    - name: set ssl_keystore permissions
+      file: 
+        path: /opt/mapr/conf/ssl_keystore
+        mode: '0600'
+
+- hosts: node1
+  tasks:
+    - name: Create /tmp/disklist.txt
+      file:
+        path: /tmp/disklist.txt
+        state: touch
+      register: touchout
+    - debug: 
+       msg: "{{ touchout }}"
+
+    - name: Fill /tmp/disklist.txt 
+      blockinfile:
+        path: /tmp/disklist.txt
+        block: |
+          /dev/sdb
+          /dev/sdc
+
+    - name: Copy /tmp/disklist.txt to node2
+      synchronize:
+        src:  /tmp/disklist.txt
+        dest: /tmp/disklist.txt
+        mode: pull
+      delegate_to: node2
+      register: list1
+    - debug:
+       msg: "{{ list1 }}"
+
+    - name: Copy /tmp/disklist.txt to node3
+      synchronize:
+        src:  /tmp/disklist.txt
+        dest: /tmp/disklist.txt
+        mode: pull
+      delegate_to: node3
+      register: list2
+    - debug:
+       msg: "{{ list2 }}"
+
+
+- hosts: all
+  tasks: 
+    - name: Run disksetup on nodes
+      shell: '/opt/mapr/server/disksetup -F /tmp/disklist.txt'
+      register: shellout
+    - debug:
+       msg: "{{ shellout }}"
+
+- hosts: all
+  tasks:
+    - name: Run zookeeper and warden on all nodes
+      service: 
+        name: "{{ item }}"
+        state: started
+      with_items:
+        - mapr-zookeeper
+        - mapr-warden
+      register: status
+    - debug:
+        msg: "{{ status }}"
+
+    - name: Get status
+      service_facts:
+
+    - debug:
+        var: ansible_facts.services['mapr-warden.service'].state
+
+    - debug:
+        var: ansible_facts.services['mapr-zookeeper.service'].state     
+
+
+- hosts: all
+  gather_facts: yes
+  remote_user: root
+  vars_files: 
+    - secret.yml
+  tasks:
+    - name: Creating maprticket for root
+      shell: "echo {{ item.name }} | maprlogin password"
+      with_items: "{{ maprcred }}"      
+      no_log: True
+
+- hosts: all
+  gather_facts: yes
+  become: yes
+  become_method: su
+  become_user: mapr
+  vars_files: 
+    - secret.yml
+  tasks:
+    - name: Creating maprticket for mapr
+      shell: "echo {{ item.name }} | maprlogin password"
+      with_items: "{{ maprcred }}"      
+      no_log: True
+
+
+    

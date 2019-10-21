@@ -1,0 +1,9 @@
+- hosts: node1
+  tasks:
+     - name: Download liense file
+       get_url:
+         url: 'http://course-files.mapr.com/All/License.sh'
+         dest: "{{ lookup('env','HOME') }}"
+     - name: Licensing...
+       shell: "/usr/bin/bash {{ lookup('env','HOME') }}/License.sh"
+

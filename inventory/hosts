@@ -1,0 +1,27 @@
+all:
+  hosts:
+    node1:
+    node2:
+    node3:
+  children:
+    cldb:
+      hosts:
+        node1:
+        node2:
+    zookeeper:
+      hosts:
+        node1:
+        node2:
+        node3:
+    warden:
+      hosts:
+        node1:
+        node2:
+        node3:
+    nfs:
+      hosts:
+        node1:
+        node2:
+        node3:
+
+        

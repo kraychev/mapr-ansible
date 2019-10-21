@@ -1,0 +1,21 @@
+- hosts: all
+  tasks:
+    - name: Create /opt/mapr/conf/mapr_fstab
+      file:
+        path: /opt/mapr/conf/mapr_fstab
+        state: touch
+      register: touchz
+    - debug: 
+       msg: "{{ touchz }}"
+
+    - name: "Add exports to /opt/mapr/conf/mapr_fstab"
+      lineinfile: 
+        path: /opt/mapr/conf/mapr_fstab
+        insertbefore: BOF
+        line: '127.0.0.1:/mapr /mapr hard,nolock'
+        state: present
+      register: add2fstab
+    - debug: 
+       msg: "{{ add2fstab }}"
+
+       
