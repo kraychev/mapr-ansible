@@ -335,6 +335,15 @@
     - debug:
         var: ansible_facts.services['mapr-zookeeper.service'].state     
 
+- hosts: all
+  gather_facts: yes
+  vars_files: 
+    - secret.yml
+  tasks:
+    - name: Set user mapr password
+      user: name={{ item.name }} password={{ item.pw |password_hash('sha512') }} update_password=always
+      with_items: "{{ maprcred }}"
+      no_log: True
 
 - hosts: all
   gather_facts: yes
