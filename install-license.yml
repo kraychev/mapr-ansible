@@ -1,9 +1,18 @@
 - hosts: node1
+  gather_facts: yes
+  remote_user: root
+  vars_files: 
+    - secret.yml
   tasks:
-     - name: Download liense file
-       get_url:
-         url: 'http://course-files.mapr.com/All/License.sh'
-         dest: "{{ lookup('env','HOME') }}"
-     - name: Licensing...
-       shell: "/usr/bin/bash {{ lookup('env','HOME') }}/License.sh"
+    - name: Creating maprticket for root
+      shell: "echo {{ item.name }} | maprlogin password"
+      with_items: "{{ maprcred }}"      
+      no_log: False
+
+    - name: Download liense file
+      get_url:
+        url: 'http://course-files.mapr.com/All/License.sh'
+        dest: "{{ lookup('env','HOME') }}"
+    - name: Licensing...
+      shell: "/usr/bin/bash {{ lookup('env','HOME') }}/License.sh"
 
