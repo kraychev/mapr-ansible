@@ -1,3 +1,0 @@
-
-Vault password is "mapr"
-
