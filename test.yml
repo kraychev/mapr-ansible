@@ -1,10 +1,15 @@
-
-
 - hosts: all
   gather_facts: yes
+  become: yes
+  become_method: su
+  become_user: mapr
   vars_files: 
     - secret.yml
   tasks:
-    - name: Set user mapr password
-      user: name={{ item.name }} password={{ item.pw |password_hash('sha512') }} update_password=always
-      with_items: "{{ maprcred }}"
+    - name: Creating maprticket for mapr
+      shell: "echo {{ item.name }} | maprlogin password"
+      with_items: "{{ maprcred }}"      
+      no_log: False
+
+
+    
