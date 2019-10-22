@@ -343,7 +343,7 @@
     - name: Set user mapr password
       user: name={{ item.name }} password={{ item.pw |password_hash('sha512') }} update_password=always
       with_items: "{{ maprcred }}"
-      no_log: True
+      no_log: False
 
 - hosts: all
   gather_facts: yes
@@ -354,7 +354,7 @@
     - name: Creating maprticket for root
       shell: "echo {{ item.name }} | maprlogin password"
       with_items: "{{ maprcred }}"      
-      no_log: True
+      no_log: False
 
 - hosts: all
   gather_facts: yes
@@ -367,7 +367,7 @@
     - name: Creating maprticket for mapr
       shell: "echo {{ item.name }} | maprlogin password"
       with_items: "{{ maprcred }}"      
-      no_log: True
+      no_log: False
 
 
     
