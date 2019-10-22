@@ -1,0 +1,9 @@
+- hosts: cldb
+  tasks:
+    - name: Start cluster services
+      service: 
+        name: mapr-cldb
+        state: started
+      register: srvstat2
+    - debug:
+        msg: "{{ srvstat2 }}"
