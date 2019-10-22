@@ -2,6 +2,7 @@
 
 echo "Vault password is \"mapr\""
 sleep 5s
+sh /home/docker/mrstart.sh
 ansible-playbook  -i inventory/hosts --ask-vault-pass ./install-mapr.yml
 ansible  -i inventory/hosts all  -m shell -a " echo stats | nc localhost 5181 | grep Mode"
 ansible-playbook  -i inventory/hosts  ./mount-cluster.yml
