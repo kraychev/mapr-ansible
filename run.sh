@@ -10,3 +10,4 @@ ansible-playbook  -i inventory/hosts  ./mount-cluster.yml
 
 ansible  -i inventory/hosts node1 -m shell -a "maprcli node services -cldb restart -nodes node1 node2"
 ansible  -i inventory/hosts node1 -m shell -a "maprcli node services -nfs restart -nodes node1 node2 node3"
+
